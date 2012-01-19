@@ -17,11 +17,17 @@ import com.netiq.websocket.Draft;
 import com.netiq.websocket.Framedata;
 import com.netiq.websocket.WebSocket;
 import com.netiq.websocket.WebSocketAdapter;
+import com.netiq.sslsocketchannel.*;
 
 public class WebSocketProxy extends WebSocketAdapter implements Runnable {
 	public static int BUFFER_SIZE = 65536;
 
+	protected SocketChannel clientSocketChannel;
+	protected boolean isSSL;
 	protected boolean debug;
+	protected String targetHost;
+	protected int targetPort;
+	
 	protected WebSocket webSocket;
 	protected SelectionKey webSocketKey;
 	protected SocketChannel targetServer;
@@ -31,19 +37,20 @@ public class WebSocketProxy extends WebSocketAdapter implements Runnable {
 	protected LinkedBlockingQueue<ByteBuffer> toWebSocketQueue = new LinkedBlockingQueue<ByteBuffer>();
 	protected LinkedBlockingQueue<ByteBuffer> toWebSocketFrameQueue = new LinkedBlockingQueue<ByteBuffer>();
 
-	public WebSocketProxy(SocketChannel client, String host, int port, boolean debug) throws IOException {
+	public WebSocketProxy(SocketChannel client, String host, int port, boolean isSSL, boolean debug) throws IOException {
 		this.debug = debug;
-		WebSocket webSocket = new WebSocket (client, new LinkedBlockingQueue<ByteBuffer>(), this, Integer.MAX_VALUE);
-		this.webSocket = webSocket;
-		targetServer = SocketChannel.open(new InetSocketAddress(host, port));
-		targetServer.configureBlocking(false);
+		this.isSSL = isSSL;
+		this.targetHost = host;
+		this.targetPort = port;
+		this.clientSocketChannel = client;
+		
 		Thread thread = new Thread(this);
 		thread.start();
 	}
 	
-	public WebSocketProxy(SocketChannel client, String host, int port) throws IOException
+	public WebSocketProxy(SocketChannel client, String host, int port, boolean isSSL) throws IOException
 	{
-		this(client, host, port, false);
+		this(client, host, port, isSSL, false);
 	}
 
 	@Override
@@ -65,11 +72,23 @@ public class WebSocketProxy extends WebSocketAdapter implements Runnable {
 	// Runnable IMPLEMENTATION /////////////////////////////////////////////////
 	public void run() {
 		try {
+			SocketChannelWrapper clientSocketWrapper;
+			if(isSSL){
+				clientSocketWrapper = new SSLSocketChannelWrapper(clientSocketChannel);
+			}
+			else{
+				clientSocketWrapper = new SocketChannelWrapper(clientSocketChannel);
+			}
+			WebSocket webSocket = new WebSocket (clientSocketWrapper, new LinkedBlockingQueue<ByteBuffer>(), this, Integer.MAX_VALUE);
+			this.webSocket = webSocket;
+			targetServer = SocketChannel.open(new InetSocketAddress(targetHost, targetPort));
+			targetServer.configureBlocking(false);
 
 			selector = Selector.open();
 			targetServerKey = targetServer.register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
 			webSocketKey = webSocket.socketChannel().register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE, webSocket);
-		} catch (IOException ex) {
+		} catch (Exception ex) {
+			ex.printStackTrace();
 			return;
 		}
 

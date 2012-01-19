@@ -25,11 +25,18 @@ public class WebsockifyServer implements Runnable {
 
 	protected String targetHost;
 	protected int targetPort;
+	
+	protected boolean isSSL = false;
 
 	public WebsockifyServer(int port, String targetHost, int targetPort) {
+		this ( port, targetHost, targetPort, false);
+	}
+	
+	public WebsockifyServer(int port, String targetHost, int targetPort, boolean isSSL) {
 		this.port = port;
 		this.targetHost = targetHost;
 		this.targetPort = targetPort;
+		this.isSSL = isSSL;
 	}
 
 	/**
@@ -91,7 +98,7 @@ public class WebsockifyServer implements Runnable {
 					if (key.isAcceptable()) {
 						SocketChannel client = server.accept();
 						client.configureBlocking(false);
-						new WebSocketProxy(client, targetHost, targetPort);
+						new WebSocketProxy(client, targetHost, targetPort, isSSL);
 					}
 				}
 			} catch (IOException ex) {
@@ -115,7 +122,7 @@ public class WebsockifyServer implements Runnable {
 			String targetHost = args[1];
 			int targetPort = Integer.parseInt(args[2]);
 			
-			WebsockifyServer s = new WebsockifyServer(port, targetHost, targetPort);
+			WebsockifyServer s = new WebsockifyServer(port, targetHost, targetPort, true);
 			s.start();
 			System.out.println("Websockify Server started on port: " + s.getPort());
 		}

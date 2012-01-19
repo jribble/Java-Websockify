@@ -17,7 +17,7 @@
 		<dependency>
 			<groupId>com.netiq</groupId>
 			<artifactId>websocket</artifactId>
-			<version>0.7</version>
+			<version>0.8-SNAPSHOT</version>
 			<scope>compile</scope>
 		</dependency>
 	</dependencies>
