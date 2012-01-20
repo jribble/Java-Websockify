@@ -15,10 +15,9 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>com.netiq</groupId>
-			<artifactId>websocket</artifactId>
-			<version>0.8-SNAPSHOT</version>
-			<scope>compile</scope>
+		    <groupId>io.netty</groupId>
+		    <artifactId>netty</artifactId>
+		    <version>3.3.0.Final</version>
 		</dependency>
 	</dependencies>
 </project>
