@@ -1,6 +1,7 @@
 package com.netiq.websockify;
 
 import static org.jboss.netty.channel.Channels.pipeline;
+import org.jboss.netty.handler.stream.ChunkedWriteHandler;
 
 import javax.net.ssl.SSLEngine;
 
@@ -30,6 +31,10 @@ public class WebsockifyProxyPipelineFactory implements ChannelPipelineFactory {
     public ChannelPipeline getPipeline() throws Exception {
         ChannelPipeline p = pipeline(); // Note the static import.
         
+        System.out.println("Generating a pipeline.");
+
+        p.addLast("flash", new FlashPolicyHandler());
+        
         if(useSSL) {
             SSLEngine engine = WebsockifySslContext.getInstance().getServerContext().createSSLEngine();
             engine.setUseClientMode(false);
@@ -39,6 +44,7 @@ public class WebsockifyProxyPipelineFactory implements ChannelPipelineFactory {
         p.addLast("decoder", new HttpRequestDecoder());
         p.addLast("aggregator", new HttpChunkAggregator(65536));
         p.addLast("encoder", new HttpResponseEncoder());
+        p.addLast("chunkedWriter", new ChunkedWriteHandler());
         p.addLast("handler", new WebsockifyInboundHandler(cf, remoteHost, remotePort));
         return p;
     }
