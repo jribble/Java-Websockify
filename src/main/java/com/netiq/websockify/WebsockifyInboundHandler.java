@@ -22,6 +22,8 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Locale;
 import java.util.TimeZone;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import javax.activation.MimetypesFileTypeMap;
 
@@ -29,6 +31,7 @@ import org.jboss.netty.bootstrap.ClientBootstrap;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
+import org.jboss.netty.channel.ChannelEvent;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.ChannelFutureProgressListener;
@@ -62,9 +65,11 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
     public static final String HTTP_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz";
     public static final String HTTP_DATE_GMT_TIMEZONE = "GMT";
     public static final int HTTP_CACHE_SECONDS = 60;
+    public static final long CONNECTION_TO_FIRST_MSG_TIMEOUT = 500;
     
     private final ClientSocketChannelFactory cf;
     private final IProxyTargetResolver resolver;
+    private final Timer msgTimer = new Timer ( );
 
     private WebSocketServerHandshaker handshaker = null;
 
@@ -81,7 +86,7 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
         this.outboundChannel = null;
     }
 
-    private void ensureTargetConnection(MessageEvent e)
+    private void ensureTargetConnection(ChannelEvent e, boolean websocket, final Object sendMsg)
             throws Exception {
     	if(outboundChannel == null) {
 	        // Suspend incoming traffic until connected to the remote host.
@@ -99,10 +104,16 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
 	
 	        // Start the connection attempt.
 	        ClientBootstrap cb = new ClientBootstrap(cf);
-	        cb.getPipeline().addLast("handler", new OutboundWebsocketHandler(e.getChannel(), trafficLock));
+	        if ( websocket ) {
+	        	cb.getPipeline().addLast("handler", new OutboundWebsocketHandler(e.getChannel(), trafficLock));
+	        }
+	        else {
+	        	cb.getPipeline().addLast("handler", new OutboundHandler(e.getChannel(), trafficLock));	        	
+	        }
 	        ChannelFuture f = cb.connect(target);
 	
 	        outboundChannel = f.getChannel();
+	        if ( sendMsg != null ) outboundChannel.write(sendMsg);
 	        f.addListener(new ChannelFutureListener() {
 	            @Override
 	            public void operationComplete(ChannelFuture future) throws Exception {
@@ -116,13 +127,46 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
 	                }
 	            }
 	        });
+    	} else {
+	        if ( sendMsg != null ) outboundChannel.write(sendMsg);
     	}
+    }
+    
+    // In cases where there will be a direct VNC proxy connection
+    // The client won't send any message because VNC servers talk first
+    // So we'll set a timer on the connection - if there's no message by the time
+    // the timer fires we'll create the proxy connection to the target
+    @Override
+    public void channelOpen(final ChannelHandlerContext ctx, final ChannelStateEvent e)
+            throws Exception {
+    	msgTimer.schedule(new TimerTask ( ) {
+
+			@Override
+			public void run() {
+				try {
+					// remove web handling bits from pipeline
+					// because this will be a direct VNC proxy
+			        ctx.getPipeline().remove("decoder");
+			        ctx.getPipeline().remove("aggregator");
+			        ctx.getPipeline().remove("encoder");
+			        ctx.getPipeline().remove("chunkedWriter");
+			        // make the proxy connection
+					ensureTargetConnection ( e, false, null );
+				} catch (Exception ex) {
+					// target connection failed, so close the client connection
+					e.getChannel().close();
+					ex.printStackTrace();
+				}
+				
+			}
+    		
+    	}, CONNECTION_TO_FIRST_MSG_TIMEOUT);
     }
 
     @Override
     public void messageReceived(ChannelHandlerContext ctx, final MessageEvent e)
             throws Exception {
-
+    	msgTimer.cancel();
         Object msg = e.getMessage();
         // An HttpRequest means either an initial websocket connection
         // or a web server request
@@ -162,9 +206,8 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
 	        		req.addHeader("Sec-WebSocket-Protocol", protocol);
 	        	}
 	            this.handshaker.handshake(ctx.getChannel(), req);
-	            System.out.println("Handshake complete.");
 	        }
-	    	ensureTargetConnection (e);
+	    	ensureTargetConnection (e, true, null);
         }
         else /* not a websocket connection attempt */{
         	handleWebRequest ( ctx, e );
@@ -197,9 +240,9 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
         }
     }
 
-    private void handleVncDirect(ChannelHandlerContext ctx, ChannelBuffer buffer, final MessageEvent e) {
-
+    private void handleVncDirect(ChannelHandlerContext ctx, ChannelBuffer buffer, final MessageEvent e) throws Exception {
     	// ensure the target connection is open and send the data
+    	ensureTargetConnection(e, false, buffer);
     }
     
     private void handleWebRequest(ChannelHandlerContext ctx, final MessageEvent e) throws Exception {
