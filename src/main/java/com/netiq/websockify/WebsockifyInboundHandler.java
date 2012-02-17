@@ -99,7 +99,7 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
 	
 	        // Start the connection attempt.
 	        ClientBootstrap cb = new ClientBootstrap(cf);
-	        cb.getPipeline().addLast("handler", new OutboundHandler(e.getChannel()));
+	        cb.getPipeline().addLast("handler", new OutboundWebsocketHandler(e.getChannel(), trafficLock));
 	        ChannelFuture f = cb.connect(target);
 	
 	        outboundChannel = f.getChannel();
@@ -124,10 +124,16 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
             throws Exception {
 
         Object msg = e.getMessage();
+        // An HttpRequest means either an initial websocket connection
+        // or a web server request
         if (msg instanceof HttpRequest) {
             handleHttpRequest(ctx, (HttpRequest) msg, e);
+        // A WebSocketFrame means a continuation of an established websocket connection
         } else if (msg instanceof WebSocketFrame) {
             handleWebSocketFrame(ctx, (WebSocketFrame) msg, e);
+            // A channel buffer we treat as a VNC protocol request
+        } else if (msg instanceof ChannelBuffer) {
+            handleVncDirect(ctx, (ChannelBuffer) msg, e);
         }
     }
 
@@ -189,6 +195,11 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
                 e.getChannel().setReadable(false);
             }
         }
+    }
+
+    private void handleVncDirect(ChannelHandlerContext ctx, ChannelBuffer buffer, final MessageEvent e) {
+
+    	// ensure the target connection is open and send the data
     }
     
     private void handleWebRequest(ChannelHandlerContext ctx, final MessageEvent e) throws Exception {
@@ -418,56 +429,6 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
             throws Exception {
         e.getCause().printStackTrace();
         closeOnFlush(e.getChannel());
-    }
-
-    private class OutboundHandler extends SimpleChannelUpstreamHandler {
-
-        private final Channel inboundChannel;
-
-        OutboundHandler(Channel inboundChannel) {
-            this.inboundChannel = inboundChannel;
-        }
-
-        @Override
-        public void messageReceived(ChannelHandlerContext ctx, final MessageEvent e)
-                throws Exception {
-            ChannelBuffer msg = (ChannelBuffer) e.getMessage();
-        	// Encode the message to base64
-        	ChannelBuffer base64Msg = Base64.encode(msg, false);
-            synchronized (trafficLock) {
-                inboundChannel.write(new TextWebSocketFrame(base64Msg));
-                // If inboundChannel is saturated, do not read until notified in
-                // HexDumpProxyInboundHandler.channelInterestChanged().
-                if (!inboundChannel.isWritable()) {
-                    e.getChannel().setReadable(false);
-                }
-            }
-        }
-
-        @Override
-        public void channelInterestChanged(ChannelHandlerContext ctx,
-                ChannelStateEvent e) throws Exception {
-            // If outboundChannel is not saturated anymore, continue accepting
-            // the incoming traffic from the inboundChannel.
-            synchronized (trafficLock) {
-                if (e.getChannel().isWritable()) {
-                    inboundChannel.setReadable(true);
-                }
-            }
-        }
-
-        @Override
-        public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e)
-                throws Exception {
-            closeOnFlush(inboundChannel);
-        }
-
-        @Override
-        public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e)
-                throws Exception {
-            e.getCause().printStackTrace();
-            closeOnFlush(e.getChannel());
-        }
     }
 
     /**
