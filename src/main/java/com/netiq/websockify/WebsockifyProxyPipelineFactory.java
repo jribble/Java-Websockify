@@ -16,14 +16,12 @@ import org.jboss.netty.handler.ssl.SslHandler;
 public class WebsockifyProxyPipelineFactory implements ChannelPipelineFactory {
 
     private final ClientSocketChannelFactory cf;
-    private final String remoteHost;
-    private final int remotePort;
+    private final IProxyTargetResolver resolver;
     private final boolean useSSL;
 
-    public WebsockifyProxyPipelineFactory(ClientSocketChannelFactory cf, String remoteHost, int remotePort, boolean useSSL) {
+    public WebsockifyProxyPipelineFactory(ClientSocketChannelFactory cf, IProxyTargetResolver resolver, boolean useSSL) {
         this.cf = cf;
-        this.remoteHost = remoteHost;
-        this.remotePort = remotePort;
+        this.resolver = resolver;
         this.useSSL = useSSL;
     }
 
@@ -45,7 +43,7 @@ public class WebsockifyProxyPipelineFactory implements ChannelPipelineFactory {
         p.addLast("aggregator", new HttpChunkAggregator(65536));
         p.addLast("encoder", new HttpResponseEncoder());
         p.addLast("chunkedWriter", new ChunkedWriteHandler());
-        p.addLast("handler", new WebsockifyInboundHandler(cf, remoteHost, remotePort));
+        p.addLast("handler", new WebsockifyInboundHandler(cf, resolver));
         return p;
     }
 

@@ -13,13 +13,9 @@ import static org.jboss.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.RandomAccessFile;
-import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLDecoder;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -68,8 +64,7 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
     public static final int HTTP_CACHE_SECONDS = 60;
     
     private final ClientSocketChannelFactory cf;
-    private final String remoteHost;
-    private final int remotePort;
+    private final IProxyTargetResolver resolver;
 
     private WebSocketServerHandshaker handshaker = null;
 
@@ -80,10 +75,9 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
 
     private volatile Channel outboundChannel;
 
-    public WebsockifyInboundHandler(ClientSocketChannelFactory cf, String remoteHost, int remotePort) {
+    public WebsockifyInboundHandler(ClientSocketChannelFactory cf, IProxyTargetResolver resolver) {
         this.cf = cf;
-        this.remoteHost = remoteHost;
-        this.remotePort = remotePort;
+        this.resolver = resolver;
         this.outboundChannel = null;
     }
 
@@ -93,11 +87,20 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
 	        // Suspend incoming traffic until connected to the remote host.
 	        final Channel inboundChannel = e.getChannel();
 	        inboundChannel.setReadable(false);
+	        
+	        // resolve the target
+	        InetSocketAddress target = resolver.resolveTarget(e);
+	        if ( target == null )
+	        {
+	        	// there is no target
+	        	inboundChannel.close();
+	        	return;
+	        }
 	
 	        // Start the connection attempt.
 	        ClientBootstrap cb = new ClientBootstrap(cf);
 	        cb.getPipeline().addLast("handler", new OutboundHandler(e.getChannel()));
-	        ChannelFuture f = cb.connect(new InetSocketAddress(remoteHost, remotePort));
+	        ChannelFuture f = cb.connect(target);
 	
 	        outboundChannel = f.getChannel();
 	        f.addListener(new ChannelFutureListener() {
