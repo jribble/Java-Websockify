@@ -61,7 +61,7 @@ public class FlashPolicyHandler extends FrameDecoder {
         	System.out.println("Responding to flash policy request.");
             buffer.skipBytes(buffer.readableBytes()); // Discard everything
             channel.write(policyResponse).addListener(ChannelFutureListener.CLOSE);
-            return null;
+            return new FlashPolicyRequest();
         }
 
         // Remove ourselves, important since the byte length check at top can hinder frame decoding
