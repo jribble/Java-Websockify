@@ -54,6 +54,11 @@ public class Websockify {
 		}
 	}
 	
+	public Channel getChannel ( )
+	{
+		return serverChannel;
+	}
+	
     public static void main(String[] args) throws Exception {
         // Validate command line options.
         if (args.length != 3 && args.length != 4) {
