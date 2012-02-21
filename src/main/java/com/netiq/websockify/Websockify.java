@@ -26,19 +26,19 @@ public class Websockify {
         cf = new NioClientSocketChannelFactory(executor, executor);		
 	}
 	
-	public void connect ( int localPort, String remoteHost, int remotePort, boolean useSSL )
+	public void connect ( int localPort, String remoteHost, int remotePort, boolean useSSL, boolean enableWebServer )
 	{
-		connect ( localPort, new StaticTargetResolver ( remoteHost, remotePort ), useSSL );		
+		connect ( localPort, new StaticTargetResolver ( remoteHost, remotePort ), useSSL, enableWebServer );		
 	}
 	
-	public void connect ( int localPort, IProxyTargetResolver resolver, boolean useSSL )
+	public void connect ( int localPort, IProxyTargetResolver resolver, boolean useSSL, boolean enableWebServer )
 	{
 		if ( serverChannel != null )
 		{
 			close ( );
 		}
 
-        sb.setPipelineFactory(new WebsockifyProxyPipelineFactory(cf, resolver, useSSL));
+        sb.setPipelineFactory(new WebsockifyProxyPipelineFactory(cf, resolver, useSSL, enableWebServer));
 
         // Start up the server.
         serverChannel = sb.bind(new InetSocketAddress(localPort));
@@ -94,7 +94,7 @@ public class Websockify {
         if(useSSL) System.out.println("Websocket communications are SSL encrypted.");
 
         Websockify ws = new Websockify ( );
-        ws.connect ( localPort, remoteHost, remotePort, useSSL );
+        ws.connect ( localPort, remoteHost, remotePort, useSSL, true );
         
     }
 

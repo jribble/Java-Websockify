@@ -18,11 +18,13 @@ public class WebsockifyProxyPipelineFactory implements ChannelPipelineFactory {
     private final ClientSocketChannelFactory cf;
     private final IProxyTargetResolver resolver;
     private final boolean useSSL;
+    private final boolean enableWebServer;
 
-    public WebsockifyProxyPipelineFactory(ClientSocketChannelFactory cf, IProxyTargetResolver resolver, boolean useSSL) {
+    public WebsockifyProxyPipelineFactory(ClientSocketChannelFactory cf, IProxyTargetResolver resolver, boolean useSSL, boolean enableWebServer) {
         this.cf = cf;
         this.resolver = resolver;
         this.useSSL = useSSL;
+        this.enableWebServer = enableWebServer;
     }
 
     @Override
@@ -43,7 +45,7 @@ public class WebsockifyProxyPipelineFactory implements ChannelPipelineFactory {
         p.addLast("aggregator", new HttpChunkAggregator(65536));
         p.addLast("encoder", new HttpResponseEncoder());
         p.addLast("chunkedWriter", new ChunkedWriteHandler());
-        p.addLast("handler", new WebsockifyInboundHandler(cf, resolver));
+        p.addLast("handler", new WebsockifyInboundHandler(cf, resolver, enableWebServer));
         return p;
     }
 
