@@ -464,6 +464,7 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
     @Override
     public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e)
             throws Exception {
+    	msgTimer.cancel();
         if (outboundChannel != null) {
             closeOnFlush(outboundChannel);
         }
@@ -472,6 +473,7 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e)
             throws Exception {
+    	msgTimer.cancel();
         e.getCause().printStackTrace();
         closeOnFlush(e.getChannel());
     }
