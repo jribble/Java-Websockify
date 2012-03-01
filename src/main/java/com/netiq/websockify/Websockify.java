@@ -1,74 +1,51 @@
 package com.netiq.websockify;
 
-import org.jboss.netty.bootstrap.ServerBootstrap;
-import org.jboss.netty.channel.Channel;
-import org.jboss.netty.channel.socket.ClientSocketChannelFactory;
-import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
-import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
-
-import java.net.InetSocketAddress;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
 
 public class Websockify {
-	private Executor executor;
-	private ServerBootstrap sb;
-	private ClientSocketChannelFactory cf;
-	private Channel serverChannel = null;
 	
-	public Websockify ( )
-	{		
-        // Configure the bootstrap.
-        executor = Executors.newCachedThreadPool();
-        sb = new ServerBootstrap(new NioServerSocketChannelFactory(executor, executor));
-
-        // Set up the event pipeline factory.
-        cf = new NioClientSocketChannelFactory(executor, executor);		
-	}
+	@Option(name="--help",usage="show this help message")
+	private boolean showHelp = false;
 	
-	public void connect ( int localPort, String remoteHost, int remotePort, boolean useSSL, boolean enableWebServer )
-	{
-		connect ( localPort, new StaticTargetResolver ( remoteHost, remotePort ), useSSL, enableWebServer );		
-	}
+	@Option(name="--port",usage="(required) local port the websockify server will listen on",required=true)
+	private int port;
 	
-	public void connect ( int localPort, IProxyTargetResolver resolver, boolean useSSL, boolean enableWebServer )
-	{
-		if ( serverChannel != null )
-		{
-			close ( );
-		}
-
-        sb.setPipelineFactory(new WebsockifyProxyPipelineFactory(cf, resolver, useSSL, enableWebServer));
-
-        // Start up the server.
-        serverChannel = sb.bind(new InetSocketAddress(localPort));
-		
-	}
+	@Option(name="--remote-host",usage="(required) remote host the websockify server will proxy to",required=true)
+	private String remoteHost;
 	
-	public void close ( )
-	{
-		if ( serverChannel != null && serverChannel.isBound() )
-		{
-			serverChannel.close();
-			serverChannel = null;
-		}
-	}
+	@Option(name="--remote-port",usage="(required) remote port the websockify server will proxy to",required=true)
+	private int remotePort;
 	
-	public Channel getChannel ( )
-	{
-		return serverChannel;
-	}
+	@Option(name="--enable-ssl",usage="enable SSL")
+	private boolean enableSSL = false;
 	
     public static void main(String[] args) throws Exception {
-        // Validate command line options.
-        if (args.length != 3 && args.length != 4) {
-            System.err.println(
-                    "Usage: " + Websockify.class.getSimpleName() +
-                    " <local port> <remote host> <remote port> [encrypt]");
-            return;
-        }
+    	new Websockify().doMain(args);
+    }
+    
+    public void doMain(String[] args) throws Exception {
+    	CmdLineParser parser = new CmdLineParser(this);
+    	parser.setUsageWidth(80);
+    	
+    	try {
+    		parser.parseArgument(args);
+    	}
+    	catch (CmdLineException e) {
+    		System.err.println(e.getMessage());
+    		System.err.println("java -jar websockify.jar [options...]");
+    		parser.printUsage(System.err);
+    		return;
+    	}
+    	
+    	if ( showHelp ) {
+    		System.err.println("java -jar websockify.jar [options...]");
+    		parser.printUsage(System.out);
+    		return;
+    	}
         
-        if (args.length == 4) {
+        if (enableSSL) {
             String keyStoreFilePath = System.getProperty("keystore.file.path");
             if (keyStoreFilePath == null || keyStoreFilePath.isEmpty()) {
                 System.out.println("ERROR: System property keystore.file.path not set. Exiting now!");
@@ -82,19 +59,13 @@ public class Websockify {
             }
         }
 
-        // Parse command line options.
-        int localPort = Integer.parseInt(args[0]);
-        String remoteHost = args[1];
-        int remotePort = Integer.parseInt(args[2]);
-        boolean useSSL = args.length < 4 ? false : true;
-
         System.out.println(
-                "Websockify Proxying *:" + localPort + " to " +
+                "Websockify Proxying *:" + port + " to " +
                 remoteHost + ':' + remotePort + " ...");
-        if(useSSL) System.out.println("Websocket communications are SSL encrypted.");
+        if(enableSSL) System.out.println("Websocket communications are SSL encrypted.");
 
-        Websockify ws = new Websockify ( );
-        ws.connect ( localPort, remoteHost, remotePort, useSSL, true );
+        WebsockifyServer wss = new WebsockifyServer ( );
+        wss.connect ( port, remoteHost, remotePort, enableSSL, true );
         
     }
 
