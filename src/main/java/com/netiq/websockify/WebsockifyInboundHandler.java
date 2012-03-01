@@ -72,7 +72,7 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
     private final Timer msgTimer = new Timer ( );
 
     private WebSocketServerHandshaker handshaker = null;
-    private boolean webServerEnabled;
+    private String webDirectory;
 
     // This lock guards against the race condition that overrides the
     // OP_READ flag incorrectly.
@@ -81,11 +81,11 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
 
     private volatile Channel outboundChannel;
 
-    public WebsockifyInboundHandler(ClientSocketChannelFactory cf, IProxyTargetResolver resolver, boolean enableWebServer) {
+    public WebsockifyInboundHandler(ClientSocketChannelFactory cf, IProxyTargetResolver resolver, String webDirectory) {
         this.cf = cf;
         this.resolver = resolver;
         this.outboundChannel = null;
-        this.webServerEnabled = enableWebServer;
+        this.webDirectory = webDirectory;
     }
 
     private void ensureTargetConnection(ChannelEvent e, boolean websocket, final Object sendMsg)
@@ -211,7 +211,7 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
 	        }
 	    	ensureTargetConnection (e, true, null);
         }
-        else if ( webServerEnabled )/* not a websocket connection attempt */{
+        else if ( webDirectory != null )/* not a websocket connection attempt */{
         	handleWebRequest ( ctx, e );
         }
     }
@@ -353,7 +353,7 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
         }
 
         // Convert to absolute path.
-        return System.getProperty("user.dir") + File.separator + uri;
+        return webDirectory + File.separator + uri;
     }
 
     private void sendHttpResponse(ChannelHandlerContext ctx, HttpRequest req, HttpResponse res) {

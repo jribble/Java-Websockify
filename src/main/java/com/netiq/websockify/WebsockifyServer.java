@@ -16,6 +16,8 @@ public class WebsockifyServer {
 	private ClientSocketChannelFactory cf;
 	private Channel serverChannel = null;
 	
+	public enum SSLSetting { OFF, ON, REQUIRED };
+	
 	public WebsockifyServer ( )
 	{		
         // Configure the bootstrap.
@@ -26,19 +28,34 @@ public class WebsockifyServer {
         cf = new NioClientSocketChannelFactory(executor, executor);		
 	}
 	
-	public void connect ( int localPort, String remoteHost, int remotePort, boolean useSSL, boolean enableWebServer )
+	public void connect ( int localPort, String remoteHost, int remotePort )
 	{
-		connect ( localPort, new StaticTargetResolver ( remoteHost, remotePort ), useSSL, enableWebServer );		
+		connect ( localPort, remoteHost, remotePort, SSLSetting.OFF, null );
 	}
 	
-	public void connect ( int localPort, IProxyTargetResolver resolver, boolean useSSL, boolean enableWebServer )
+	public void connect ( int localPort, String remoteHost, int remotePort, SSLSetting sslSetting )
+	{
+		connect ( localPort, remoteHost, remotePort, sslSetting, null );
+	}
+	
+	public void connect ( int localPort, String remoteHost, int remotePort, SSLSetting sslSetting, String webDirectory )
+	{
+		connect ( localPort, new StaticTargetResolver ( remoteHost, remotePort ), sslSetting, webDirectory );		
+	}
+	
+	public void connect ( int localPort, IProxyTargetResolver resolver, SSLSetting sslSetting )
+	{
+		connect ( localPort, resolver, sslSetting, null );
+	}
+	
+	public void connect ( int localPort, IProxyTargetResolver resolver, SSLSetting sslSetting, String webDirectory )
 	{
 		if ( serverChannel != null )
 		{
 			close ( );
 		}
 
-        sb.setPipelineFactory(new WebsockifyProxyPipelineFactory(cf, resolver, useSSL, enableWebServer));
+        sb.setPipelineFactory(new WebsockifyProxyPipelineFactory(cf, resolver, sslSetting, webDirectory));
 
         // Start up the server.
         serverChannel = sb.bind(new InetSocketAddress(localPort));

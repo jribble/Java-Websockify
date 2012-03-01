@@ -29,6 +29,8 @@ import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
 import org.jboss.netty.handler.ssl.SslHandler;
 import org.jboss.netty.handler.stream.ChunkedWriteHandler;
 
+import com.netiq.websockify.WebsockifyServer.SSLSetting;
+
 /**
  * Manipulates the current pipeline dynamically to switch protocols or enable
  * SSL or GZIP.
@@ -37,14 +39,14 @@ public class PortUnificationHandler extends FrameDecoder {
 
 	private final ClientSocketChannelFactory cf;
 	private final IProxyTargetResolver resolver;
-    private final boolean detectSsl;
-    private final boolean enableWebServer;
+    private final SSLSetting sslSetting;
+    private final String webDirectory;
 
-    public PortUnificationHandler(ClientSocketChannelFactory cf, IProxyTargetResolver resolver, boolean detectSsl, boolean enableWebServer) {
+    public PortUnificationHandler(ClientSocketChannelFactory cf, IProxyTargetResolver resolver, SSLSetting sslSetting, String webDirectory) {
     	this.cf = cf;
     	this.resolver = resolver;
-        this.detectSsl = detectSsl;
-        this.enableWebServer = enableWebServer;
+        this.sslSetting = sslSetting;
+        this.webDirectory = webDirectory;
     }
 
     @Override
@@ -71,7 +73,7 @@ public class PortUnificationHandler extends FrameDecoder {
     }
 
     private boolean isSsl(int magic1) {
-        if (detectSsl) {
+        if (sslSetting != SSLSetting.OFF) {
             switch (magic1) {
             case 20: case 21: case 22: case 23: case 255:
                 return true;
@@ -93,7 +95,7 @@ public class PortUnificationHandler extends FrameDecoder {
         engine.setUseClientMode(false);
 
         p.addLast("ssl", new SslHandler(engine));
-        p.addLast("unificationA", new PortUnificationHandler(cf, resolver, false, enableWebServer));
+        p.addLast("unificationA", new PortUnificationHandler(cf, resolver, SSLSetting.OFF, webDirectory));
         p.remove(this);
     }
 
@@ -104,7 +106,7 @@ public class PortUnificationHandler extends FrameDecoder {
         p.addLast("aggregator", new HttpChunkAggregator(65536));
         p.addLast("encoder", new HttpResponseEncoder());
         p.addLast("chunkedWriter", new ChunkedWriteHandler());
-        p.addLast("handler", new WebsockifyInboundHandler(cf, resolver, enableWebServer));
+        p.addLast("handler", new WebsockifyInboundHandler(cf, resolver, webDirectory));
         p.remove(this);
     }
 
