@@ -58,16 +58,11 @@ public class FlashPolicyHandler extends FrameDecoder {
         boolean isFlashPolicyRequest = (magic1 == '<' && magic2 == 'p');
 
         if (isFlashPolicyRequest) {
-        	System.out.println("Responding to flash policy request.");
             buffer.skipBytes(buffer.readableBytes()); // Discard everything
             channel.write(policyResponse).addListener(ChannelFutureListener.CLOSE);
             return new FlashPolicyRequest();
         }
-
-        // Remove ourselves, important since the byte length check at top can hinder frame decoding
-        // down the pipeline
-    	System.out.println("Not a flash policy request - removing from pipeline.");
-        ctx.getPipeline().remove(this);
-        return buffer.readBytes(buffer.readableBytes());
+        
+        return null;
     }
 }
