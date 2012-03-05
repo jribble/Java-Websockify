@@ -91,7 +91,7 @@ public class Websockify {
         System.out.println(
                 "Websockify Proxying *:" + sourcePort + " to " +
                 targetHost + ':' + targetPort + " ...");
-        if(enableSSL) System.out.println("Websocket communications are SSL encrypted.");
+        if(sslSetting != SSLSetting.OFF) System.out.println("SSL is " + (sslSetting == SSLSetting.REQUIRED ? "required." : "enabled."));
 
         WebsockifyServer wss = new WebsockifyServer ( );
         wss.connect ( sourcePort, targetHost, targetPort, sslSetting, webDirectory );
