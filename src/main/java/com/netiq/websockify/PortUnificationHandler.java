@@ -40,12 +40,16 @@ public class PortUnificationHandler extends FrameDecoder {
 	private final ClientSocketChannelFactory cf;
 	private final IProxyTargetResolver resolver;
     private final SSLSetting sslSetting;
+    private final String keystore;
+    private final String keystorePassword;    
     private final String webDirectory;
 
-    public PortUnificationHandler(ClientSocketChannelFactory cf, IProxyTargetResolver resolver, SSLSetting sslSetting, String webDirectory) {
+    public PortUnificationHandler(ClientSocketChannelFactory cf, IProxyTargetResolver resolver, SSLSetting sslSetting, String keystore, String keystorePassword, String webDirectory) {
     	this.cf = cf;
     	this.resolver = resolver;
         this.sslSetting = sslSetting;
+        this.keystore = keystore;
+        this.keystorePassword = keystorePassword;
         this.webDirectory = webDirectory;
     }
 
@@ -91,11 +95,11 @@ public class PortUnificationHandler extends FrameDecoder {
     private void enableSsl(ChannelHandlerContext ctx) {
         ChannelPipeline p = ctx.getPipeline();
 
-        SSLEngine engine = WebsockifySslContext.getInstance().getServerContext().createSSLEngine();
+        SSLEngine engine = WebsockifySslContext.getInstance(keystore, keystorePassword).getServerContext().createSSLEngine();
         engine.setUseClientMode(false);
 
         p.addLast("ssl", new SslHandler(engine));
-        p.addLast("unificationA", new PortUnificationHandler(cf, resolver, SSLSetting.OFF, webDirectory));
+        p.addLast("unificationA", new PortUnificationHandler(cf, resolver, SSLSetting.OFF, keystore, keystorePassword, webDirectory));
         p.remove(this);
     }
 

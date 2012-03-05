@@ -30,32 +30,37 @@ public class WebsockifyServer {
 	
 	public void connect ( int localPort, String remoteHost, int remotePort )
 	{
-		connect ( localPort, remoteHost, remotePort, SSLSetting.OFF, null );
+		connect ( localPort, remoteHost, remotePort, null );
 	}
 	
-	public void connect ( int localPort, String remoteHost, int remotePort, SSLSetting sslSetting )
+	public void connect ( int localPort, String remoteHost, int remotePort, String webDirectory )
 	{
-		connect ( localPort, remoteHost, remotePort, sslSetting, null );
+		connect ( localPort, remoteHost, remotePort, SSLSetting.OFF, null, null, webDirectory );
 	}
 	
-	public void connect ( int localPort, String remoteHost, int remotePort, SSLSetting sslSetting, String webDirectory )
+	public void connect ( int localPort, String remoteHost, int remotePort, SSLSetting sslSetting, String keystore, String keystorePassword, String webDirectory )
 	{
-		connect ( localPort, new StaticTargetResolver ( remoteHost, remotePort ), sslSetting, webDirectory );		
+		connect ( localPort, new StaticTargetResolver ( remoteHost, remotePort ), sslSetting, keystore, keystorePassword, webDirectory );		
 	}
 	
-	public void connect ( int localPort, IProxyTargetResolver resolver, SSLSetting sslSetting )
+	public void connect ( int localPort, IProxyTargetResolver resolver )
 	{
-		connect ( localPort, resolver, sslSetting, null );
+		connect ( localPort, resolver, null );
 	}
 	
-	public void connect ( int localPort, IProxyTargetResolver resolver, SSLSetting sslSetting, String webDirectory )
+	public void connect ( int localPort, IProxyTargetResolver resolver, String webDirectory )
+	{
+		connect ( localPort, resolver, SSLSetting.OFF, null, null, webDirectory );
+	}
+	
+	public void connect ( int localPort, IProxyTargetResolver resolver, SSLSetting sslSetting, String keystore, String keystorePassword, String webDirectory )
 	{
 		if ( serverChannel != null )
 		{
 			close ( );
 		}
 
-        sb.setPipelineFactory(new WebsockifyProxyPipelineFactory(cf, resolver, sslSetting, webDirectory));
+        sb.setPipelineFactory(new WebsockifyProxyPipelineFactory(cf, resolver, sslSetting, keystore, keystorePassword, webDirectory));
 
         // Start up the server.
         serverChannel = sb.bind(new InetSocketAddress(localPort));

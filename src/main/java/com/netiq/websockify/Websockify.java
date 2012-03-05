@@ -23,6 +23,12 @@ public class Websockify {
 	@Option(name="--dir",usage="run webserver on same port. Serve files from specified directory.")
 	private String webDirectory = null;
 	
+	@Option(name="--keystore",usage="path to a java keystore file. Required for SSL.")
+	private String keystore = null;
+	
+	@Option(name="--keystore-password",usage="password to the java keystore file. Required for SSL.")
+	private String keystorePassword = null;
+	
 	@Argument(index=0,metaVar="source_port",usage="(required) local port the websockify server will listen on",required=true)
 	private int sourcePort;
 	
@@ -75,15 +81,15 @@ public class Websockify {
     	else if ( enableSSL ) sslSetting = SSLSetting.ON;
         
         if ( sslSetting != SSLSetting.OFF ) {
-            String keyStoreFilePath = System.getProperty("keystore.file.path");
-            if (keyStoreFilePath == null || keyStoreFilePath.isEmpty()) {
-                System.out.println("ERROR: System property keystore.file.path not set. Exiting now!");
+            if (keystore == null || keystore.isEmpty()) {
+                System.err.println("No keystore specified.");
+        		printUsage(System.err);
                 System.exit(1);
             }
 
-            String keyStoreFilePassword = System.getProperty("keystore.file.password");
-            if (keyStoreFilePassword == null || keyStoreFilePassword.isEmpty()) {
-                System.out.println("ERROR: System property keystore.file.password not set. Exiting now!");
+            if (keystorePassword == null || keystorePassword.isEmpty()) {
+                System.err.println("No keystore password specified.");
+        		printUsage(System.err);
                 System.exit(1);
             }
         }
@@ -94,7 +100,7 @@ public class Websockify {
         if(sslSetting != SSLSetting.OFF) System.out.println("SSL is " + (sslSetting == SSLSetting.REQUIRED ? "required." : "enabled."));
 
         WebsockifyServer wss = new WebsockifyServer ( );
-        wss.connect ( sourcePort, targetHost, targetPort, sslSetting, webDirectory );
+        wss.connect ( sourcePort, targetHost, targetPort, sslSetting, keystore, keystorePassword, webDirectory );
         
     }
 

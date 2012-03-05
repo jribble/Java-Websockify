@@ -3,6 +3,7 @@ package com.netiq.websockify;
 import java.io.FileInputStream;
 import java.security.KeyStore;
 import java.security.Security;
+import java.util.HashMap;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -19,8 +20,14 @@ public class WebsockifySslContext {
     /**
      * Returns the singleton instance for this class
      */
-    public static WebsockifySslContext getInstance() {
-        return SingletonHolder.INSTANCE;
+    public static WebsockifySslContext getInstance(String keystore, String keystorePassword) {
+    	WebsockifySslContext context = SingletonHolder.INSTANCE_MAP.get(keystore);
+    	if ( context == null )
+    	{
+    		context = new WebsockifySslContext ( keystore, keystorePassword );
+    		SingletonHolder.INSTANCE_MAP.put(keystore, context);
+    	}
+    	return context;
     }
 
     /**
@@ -30,14 +37,13 @@ public class WebsockifySslContext {
      * See http://en.wikipedia.org/wiki/Singleton_pattern
      */
     private static class SingletonHolder {
-
-        public static final WebsockifySslContext INSTANCE = new WebsockifySslContext();
+        public static final HashMap<String, WebsockifySslContext> INSTANCE_MAP = new HashMap<String, WebsockifySslContext>();
     }
 
     /**
      * Constructor for singleton
      */
-    private WebsockifySslContext() {
+    private WebsockifySslContext(String keystore, String keystorePassword) {
         try {
             // Key store (Server side certificate)
             String algorithm = Security.getProperty("ssl.KeyManagerFactory.algorithm");
@@ -47,8 +53,8 @@ public class WebsockifySslContext {
 
             SSLContext serverContext = null;
             try {
-                String keyStoreFilePath = System.getProperty("keystore.file.path");
-                String keyStoreFilePassword = System.getProperty("keystore.file.password");
+                String keyStoreFilePath = keystore;
+                String keyStoreFilePassword = keystorePassword;
 
                 KeyStore ks = KeyStore.getInstance("JKS");
                 FileInputStream fin = new FileInputStream(keyStoreFilePath);
