@@ -8,20 +8,28 @@ import static org.jboss.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static org.jboss.netty.handler.codec.http.HttpResponseStatus.OK;
+import static org.jboss.netty.handler.codec.http.HttpResponseStatus.TEMPORARY_REDIRECT;
 import static org.jboss.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.RandomAccessFile;
+import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLDecoder;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TimeZone;
+import java.util.logging.Logger;
 
 import javax.activation.MimetypesFileTypeMap;
 
@@ -60,9 +68,11 @@ import org.jboss.netty.util.CharsetUtil;
 
 public class WebsockifyProxyHandler extends SimpleChannelUpstreamHandler {
 
-    public static final String HTTP_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz";
+    private static final String URL_PARAMETER = "url";
+	public static final String HTTP_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz";
     public static final String HTTP_DATE_GMT_TIMEZONE = "GMT";
     public static final int HTTP_CACHE_SECONDS = 60;
+    public static final String REDIRECT_PATH = "/redirect";
     
     private final ClientSocketChannelFactory cf;
     private final IProxyTargetResolver resolver;
@@ -175,8 +185,18 @@ public class WebsockifyProxyHandler extends SimpleChannelUpstreamHandler {
 	        }
 	    	ensureTargetConnection (e, true, null);
         }
-        else if ( webDirectory != null )/* not a websocket connection attempt */{
-        	handleWebRequest ( ctx, e );
+        else {
+            HttpRequest request = (HttpRequest) e.getMessage();
+            String redirectUrl = isRedirect(request.getUri());
+		    if ( redirectUrl != null) {
+		        HttpResponse response = new DefaultHttpResponse(HTTP_1_1, TEMPORARY_REDIRECT);
+		        response.setHeader(HttpHeaders.Names.LOCATION, redirectUrl);
+	            sendHttpResponse(ctx, req, response);
+	            return;
+		    }
+		    else if ( webDirectory != null )/* not a websocket connection attempt */{
+		    	handleWebRequest ( ctx, e );
+		    }
         }
     }
 
@@ -298,6 +318,42 @@ public class WebsockifyProxyHandler extends SimpleChannelUpstreamHandler {
             // Close the connection when the whole content is written out.
             writeFuture.addListener(ChannelFutureListener.CLOSE);
         }
+    }
+    
+    private static Map<String, String> getQueryMap(String query)
+    {
+        String[] params = query.split("&");
+        Map<String, String> map = new HashMap<String, String>();
+        for (String param : params)
+        {
+            String name = param.split("=")[0];
+            String value = param.split("=")[1];
+            map.put(name, value);
+        }
+        return map;
+    }
+
+    // checks to see if the uri is a redirect request
+    // if it is, it returns the url parameter
+    private String isRedirect(String uri) throws URISyntaxException, MalformedURLException {
+        // Decode the path.        
+        URI url = new URI (uri);
+        
+        if ( REDIRECT_PATH.equals(url.getPath()) ) {
+        	String query = url.getRawQuery();
+        	Map<String, String> params = getQueryMap(query);
+        	
+        	String urlParam = params.get(URL_PARAMETER);
+        	if ( urlParam == null ) return null;
+        	
+        	try {
+				return URLDecoder.decode(urlParam, "UTF-8");
+			} catch (UnsupportedEncodingException e) {
+				Logger.getLogger(WebsockifyProxyHandler.class.getName()).severe(e.getMessage());
+			}
+        }
+
+        return null;
     }
 
     private String sanitizeUri(String uri) throws URISyntaxException {
