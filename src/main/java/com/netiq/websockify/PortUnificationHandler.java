@@ -15,12 +15,17 @@
  */
 package com.netiq.websockify;
 
+import java.util.Timer;
+import java.util.TimerTask;
+
 import javax.net.ssl.SSLEngine;
 
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelPipeline;
+import org.jboss.netty.channel.ChannelStateEvent;
+import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.socket.ClientSocketChannelFactory;
 import org.jboss.netty.handler.codec.frame.FrameDecoder;
 import org.jboss.netty.handler.codec.http.HttpChunkAggregator;
@@ -36,6 +41,7 @@ import com.netiq.websockify.WebsockifyServer.SSLSetting;
  * SSL or GZIP.
  */
 public class PortUnificationHandler extends FrameDecoder {
+    public static final long CONNECTION_TO_FIRST_MSG_TIMEOUT = 1000;
 
 	private final ClientSocketChannelFactory cf;
 	private final IProxyTargetResolver resolver;
@@ -43,7 +49,13 @@ public class PortUnificationHandler extends FrameDecoder {
     private final String keystore;
     private final String keystorePassword;    
     private final String webDirectory;
+    private Timer msgTimer = null;
 
+    private PortUnificationHandler(ClientSocketChannelFactory cf, IProxyTargetResolver resolver, SSLSetting sslSetting, String keystore, String keystorePassword, String webDirectory, final ChannelHandlerContext ctx) {
+    	this ( cf, resolver, sslSetting, keystore, keystorePassword, webDirectory);
+    	startDirectConnectionTimer(ctx);
+    }
+    
     public PortUnificationHandler(ClientSocketChannelFactory cf, IProxyTargetResolver resolver, SSLSetting sslSetting, String keystore, String keystorePassword, String webDirectory) {
     	this.cf = cf;
     	this.resolver = resolver;
@@ -52,14 +64,52 @@ public class PortUnificationHandler extends FrameDecoder {
         this.keystorePassword = keystorePassword;
         this.webDirectory = webDirectory;
     }
+    
+    // In cases where there will be a direct VNC proxy connection
+    // The client won't send any message because VNC servers talk first
+    // So we'll set a timer on the connection - if there's no message by the time
+    // the timer fires we'll create the proxy connection to the target
+    @Override
+    public void channelOpen(final ChannelHandlerContext ctx, final ChannelStateEvent e)
+            throws Exception {
+    	startDirectConnectionTimer( ctx );
+    }
+    
+    private void startDirectConnectionTimer ( final ChannelHandlerContext ctx )
+    {
+    	// cancel any outstanding timer
+        cancelDirectionConnectionTimer ( );
+    
+    	// cancelling a timer makes it unusable again, so we have to create another one
+    	msgTimer = new Timer();
+    	msgTimer.schedule(new TimerTask ( ) {
+
+			@Override
+			public void run() {
+		        switchToDirectProxy(ctx);				
+			}
+    		
+    	}, CONNECTION_TO_FIRST_MSG_TIMEOUT);
+    	
+    }
+    
+    private void cancelDirectionConnectionTimer ( )
+    {
+    	if ( msgTimer != null ) {
+    		msgTimer.cancel();
+    		msgTimer = null;
+    	}
+    	
+    }
 
     @Override
     protected Object decode(ChannelHandlerContext ctx, Channel channel, ChannelBuffer buffer) throws Exception {
-
         // Will use the first two bytes to detect a protocol.
         if (buffer.readableBytes() < 2) {
             return null;
         }
+        
+        cancelDirectionConnectionTimer ( );        
 
         final int magic1 = buffer.getUnsignedByte(buffer.readerIndex());
         final int magic2 = buffer.getUnsignedByte(buffer.readerIndex() + 1);
@@ -69,7 +119,7 @@ public class PortUnificationHandler extends FrameDecoder {
         } else if ( isFlashPolicy ( magic1, magic2 ) ) {
         	switchToFlashPolicy(ctx);
         } else {
-            switchToProxy(ctx);
+            switchToWebsocketProxy(ctx);
         }
 
         // Forward the current read buffer as is to the new handlers.
@@ -99,18 +149,18 @@ public class PortUnificationHandler extends FrameDecoder {
         engine.setUseClientMode(false);
 
         p.addLast("ssl", new SslHandler(engine));
-        p.addLast("unificationA", new PortUnificationHandler(cf, resolver, SSLSetting.OFF, keystore, keystorePassword, webDirectory));
+        p.addLast("unificationA", new PortUnificationHandler(cf, resolver, SSLSetting.OFF, keystore, keystorePassword, webDirectory, ctx));
         p.remove(this);
     }
 
-    private void switchToProxy(ChannelHandlerContext ctx) {
+    private void switchToWebsocketProxy(ChannelHandlerContext ctx) {
         ChannelPipeline p = ctx.getPipeline();
 
         p.addLast("decoder", new HttpRequestDecoder());
         p.addLast("aggregator", new HttpChunkAggregator(65536));
         p.addLast("encoder", new HttpResponseEncoder());
         p.addLast("chunkedWriter", new ChunkedWriteHandler());
-        p.addLast("handler", new WebsockifyInboundHandler(cf, resolver, webDirectory));
+        p.addLast("handler", new WebsockifyProxyHandler(cf, resolver, webDirectory));
         p.remove(this);
     }
 
@@ -120,5 +170,27 @@ public class PortUnificationHandler extends FrameDecoder {
         p.addLast("flash", new FlashPolicyHandler());
 
         p.remove(this);
+    }
+
+    private void switchToDirectProxy(ChannelHandlerContext ctx) {
+        ChannelPipeline p = ctx.getPipeline();
+
+        p.addLast("proxy", new DirectProxyHandler( ctx.getChannel(), cf, resolver ));
+
+        p.remove(this);
+    }
+
+    // cancel the timer if channel is closed - prevents useless stack traces
+    @Override
+    public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e)
+            throws Exception {
+        cancelDirectionConnectionTimer ( );
+    }
+
+    // cancel the timer if exception is caught - prevents useless stack traces
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e)
+            throws Exception {
+        cancelDirectionConnectionTimer ( );
     }
 }

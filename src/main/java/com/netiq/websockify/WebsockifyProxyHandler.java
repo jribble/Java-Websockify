@@ -22,8 +22,6 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Locale;
 import java.util.TimeZone;
-import java.util.Timer;
-import java.util.TimerTask;
 
 import javax.activation.MimetypesFileTypeMap;
 
@@ -60,16 +58,14 @@ import org.jboss.netty.handler.ssl.SslHandler;
 import org.jboss.netty.handler.stream.ChunkedFile;
 import org.jboss.netty.util.CharsetUtil;
 
-public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
+public class WebsockifyProxyHandler extends SimpleChannelUpstreamHandler {
 
     public static final String HTTP_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz";
     public static final String HTTP_DATE_GMT_TIMEZONE = "GMT";
     public static final int HTTP_CACHE_SECONDS = 60;
-    public static final long CONNECTION_TO_FIRST_MSG_TIMEOUT = 1000;
     
     private final ClientSocketChannelFactory cf;
     private final IProxyTargetResolver resolver;
-    private final Timer msgTimer = new Timer ( );
 
     private WebSocketServerHandshaker handshaker = null;
     private String webDirectory;
@@ -81,7 +77,7 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
 
     private volatile Channel outboundChannel;
 
-    public WebsockifyInboundHandler(ClientSocketChannelFactory cf, IProxyTargetResolver resolver, String webDirectory) {
+    public WebsockifyProxyHandler(ClientSocketChannelFactory cf, IProxyTargetResolver resolver, String webDirectory) {
         this.cf = cf;
         this.resolver = resolver;
         this.outboundChannel = null;
@@ -96,7 +92,7 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
 	        inboundChannel.setReadable(false);
 	        
 	        // resolve the target
-	        InetSocketAddress target = resolver.resolveTarget(e);
+	        InetSocketAddress target = resolver.resolveTarget(e.getChannel());
 	        if ( target == null )
 	        {
 	        	// there is no target
@@ -133,42 +129,10 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
 	        if ( sendMsg != null ) outboundChannel.write(sendMsg);
     	}
     }
-    
-    // In cases where there will be a direct VNC proxy connection
-    // The client won't send any message because VNC servers talk first
-    // So we'll set a timer on the connection - if there's no message by the time
-    // the timer fires we'll create the proxy connection to the target
-    @Override
-    public void channelOpen(final ChannelHandlerContext ctx, final ChannelStateEvent e)
-            throws Exception {
-    	msgTimer.schedule(new TimerTask ( ) {
-
-			@Override
-			public void run() {
-				try {
-					// remove web handling bits from pipeline
-					// because this will be a direct VNC proxy
-			        ctx.getPipeline().remove("decoder");
-			        ctx.getPipeline().remove("aggregator");
-			        ctx.getPipeline().remove("encoder");
-			        ctx.getPipeline().remove("chunkedWriter");
-			        // make the proxy connection
-					ensureTargetConnection ( e, false, null );
-				} catch (Exception ex) {
-					// target connection failed, so close the client connection
-					e.getChannel().close();
-					ex.printStackTrace();
-				}
-				
-			}
-    		
-    	}, CONNECTION_TO_FIRST_MSG_TIMEOUT);
-    }
 
     @Override
     public void messageReceived(ChannelHandlerContext ctx, final MessageEvent e)
             throws Exception {
-    	msgTimer.cancel();
         Object msg = e.getMessage();
         // An HttpRequest means either an initial websocket connection
         // or a web server request
@@ -464,7 +428,6 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
     @Override
     public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e)
             throws Exception {
-    	msgTimer.cancel();
         if (outboundChannel != null) {
             closeOnFlush(outboundChannel);
         }
@@ -473,7 +436,6 @@ public class WebsockifyInboundHandler extends SimpleChannelUpstreamHandler {
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e)
             throws Exception {
-    	msgTimer.cancel();
         e.getCause().printStackTrace();
         closeOnFlush(e.getChannel());
     }

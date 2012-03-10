@@ -52,13 +52,13 @@ public class OutboundHandler extends SimpleChannelUpstreamHandler {
     @Override
     public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e)
             throws Exception {
-        WebsockifyInboundHandler.closeOnFlush(inboundChannel);
+        WebsockifyProxyHandler.closeOnFlush(inboundChannel);
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e)
             throws Exception {
         e.getCause().printStackTrace();
-        WebsockifyInboundHandler.closeOnFlush(e.getChannel());
+        WebsockifyProxyHandler.closeOnFlush(e.getChannel());
     }
 }
