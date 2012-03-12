@@ -17,6 +17,7 @@ package com.netiq.websockify;
 
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.logging.Logger;
 
 import javax.net.ssl.SSLEngine;
 
@@ -145,6 +146,8 @@ public class PortUnificationHandler extends FrameDecoder {
     private void enableSsl(ChannelHandlerContext ctx) {
         ChannelPipeline p = ctx.getPipeline();
 
+		Logger.getLogger(PortUnificationHandler.class.getName()).fine("SSL request from " + ctx.getChannel().getRemoteAddress() + ".");
+
         SSLEngine engine = WebsockifySslContext.getInstance(keystore, keystorePassword).getServerContext().createSSLEngine();
         engine.setUseClientMode(false);
 
@@ -155,6 +158,8 @@ public class PortUnificationHandler extends FrameDecoder {
 
     private void switchToWebsocketProxy(ChannelHandlerContext ctx) {
         ChannelPipeline p = ctx.getPipeline();
+
+		Logger.getLogger(PortUnificationHandler.class.getName()).fine("Websocket proxy request from " + ctx.getChannel().getRemoteAddress() + ".");
 
         p.addLast("decoder", new HttpRequestDecoder());
         p.addLast("aggregator", new HttpChunkAggregator(65536));
@@ -167,6 +172,8 @@ public class PortUnificationHandler extends FrameDecoder {
     private void switchToFlashPolicy(ChannelHandlerContext ctx) {
         ChannelPipeline p = ctx.getPipeline();
 
+		Logger.getLogger(PortUnificationHandler.class.getName()).fine("Flash policy request from " + ctx.getChannel().getRemoteAddress() + ".");
+
         p.addLast("flash", new FlashPolicyHandler());
 
         p.remove(this);
@@ -175,6 +182,8 @@ public class PortUnificationHandler extends FrameDecoder {
     private void switchToDirectProxy(ChannelHandlerContext ctx) {
         ChannelPipeline p = ctx.getPipeline();
 
+		Logger.getLogger(PortUnificationHandler.class.getName()).fine("Direct proxy request from " + ctx.getChannel().getRemoteAddress() + ".");
+		
         p.addLast("proxy", new DirectProxyHandler( ctx.getChannel(), cf, resolver ));
 
         p.remove(this);
@@ -192,5 +201,6 @@ public class PortUnificationHandler extends FrameDecoder {
     public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e)
             throws Exception {
         cancelDirectionConnectionTimer ( );
+		Logger.getLogger(PortUnificationHandler.class.getName()).severe("Exception on connection to " + ctx.getChannel().getRemoteAddress() + ": " + e.getCause().getMessage() );
     }
 }

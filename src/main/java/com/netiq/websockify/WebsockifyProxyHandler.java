@@ -100,11 +100,13 @@ public class WebsockifyProxyHandler extends SimpleChannelUpstreamHandler {
 	        // Suspend incoming traffic until connected to the remote host.
 	        final Channel inboundChannel = e.getChannel();
 	        inboundChannel.setReadable(false);
+			Logger.getLogger(WebsockifyProxyHandler.class.getName()).info("Inbound proxy connection from " + inboundChannel.getRemoteAddress() + ".");
 	        
 	        // resolve the target
-	        InetSocketAddress target = resolver.resolveTarget(e.getChannel());
+	        final InetSocketAddress target = resolver.resolveTarget(inboundChannel);
 	        if ( target == null )
 	        {
+				Logger.getLogger(WebsockifyProxyHandler.class.getName()).severe("Connection from " + inboundChannel.getRemoteAddress() + " failed to resolve target.");
 	        	// there is no target
 	        	inboundChannel.close();
 	        	return;
@@ -128,8 +130,10 @@ public class WebsockifyProxyHandler extends SimpleChannelUpstreamHandler {
 	                if (future.isSuccess()) {
 	                    // Connection attempt succeeded:
 	                    // Begin to accept incoming traffic.
+	    				Logger.getLogger(WebsockifyProxyHandler.class.getName()).info("Created outbound connection to " + target + ".");
 	                    inboundChannel.setReadable(true);
 	                } else {
+	    				Logger.getLogger(WebsockifyProxyHandler.class.getName()).severe("Failed to create outbound connection to " + target + ".");
 	                    // Close the connection if the connection attempt has failed.
 	                    inboundChannel.close();
 	                }
@@ -166,6 +170,7 @@ public class WebsockifyProxyHandler extends SimpleChannelUpstreamHandler {
 
         String upgradeHeader = req.getHeader("Upgrade");
         if(upgradeHeader != null && upgradeHeader.toUpperCase().equals("WEBSOCKET")){
+			Logger.getLogger(WebsockifyProxyHandler.class.getName()).fine("Websocket request from " + e.getRemoteAddress() + ".");
 	        // Handshake
 	        WebSocketServerHandshakerFactory wsFactory = new WebSocketServerHandshakerFactory(
 	                this.getWebSocketLocation(req), "base64", false);
@@ -189,6 +194,7 @@ public class WebsockifyProxyHandler extends SimpleChannelUpstreamHandler {
             HttpRequest request = (HttpRequest) e.getMessage();
             String redirectUrl = isRedirect(request.getUri());
 		    if ( redirectUrl != null) {
+				Logger.getLogger(WebsockifyProxyHandler.class.getName()).fine("Redirecting to " + redirectUrl + ".");
 		        HttpResponse response = new DefaultHttpResponse(HTTP_1_1, TEMPORARY_REDIRECT);
 		        response.setHeader(HttpHeaders.Names.LOCATION, redirectUrl);
 	            sendHttpResponse(ctx, req, response);
@@ -238,6 +244,8 @@ public class WebsockifyProxyHandler extends SimpleChannelUpstreamHandler {
             sendError(ctx, METHOD_NOT_ALLOWED);
             return;
         }
+        
+		Logger.getLogger(WebsockifyProxyHandler.class.getName()).info("Web request from " + e.getRemoteAddress() + " for " + request.getUri() + ".");
 
         final String path = sanitizeUri(request.getUri());
         if (path == null) {

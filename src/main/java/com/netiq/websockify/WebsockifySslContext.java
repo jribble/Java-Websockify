@@ -4,6 +4,7 @@ import java.io.FileInputStream;
 import java.security.KeyStore;
 import java.security.Security;
 import java.util.HashMap;
+import java.util.logging.Logger;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -70,6 +71,7 @@ public class WebsockifySslContext {
                 serverContext = SSLContext.getInstance(PROTOCOL);
                 serverContext.init(kmf.getKeyManagers(), null, null);
             } catch (Exception e) {
+        		Logger.getLogger(WebsockifySslContext.class.getName()).severe("Error creating SSL context for keystore " + keystore + ": " + e.getMessage());
                 throw new Error("Failed to initialize the server-side SSLContext", e);
             }
             _serverContext = serverContext;
