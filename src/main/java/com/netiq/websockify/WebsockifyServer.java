@@ -80,5 +80,16 @@ public class WebsockifyServer {
 	{
 		return serverChannel;
 	}
+	
+	/**
+	 * Validates that a keystore with the given parameters exists and can be used for an SSL context.
+	 * @param keystore - path to the keystore file
+	 * @param password - password to the keystore file
+	 * @param keyPassword - password to the private key in the keystore file
+	 * @return null if valid, otherwise a string describing the error.
+	 */
+	public String validateKeystore ( String keystore, String password, String keyPassword ) {
+		return WebsockifySslContext.validateKeystore(keystore, password, keyPassword);
+	}
 
 }

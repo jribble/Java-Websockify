@@ -1,8 +1,15 @@
 package com.netiq.websockify;
 
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.security.KeyManagementException;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.security.Security;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.util.HashMap;
 import java.util.logging.Logger;
 
@@ -52,29 +59,9 @@ public class WebsockifySslContext {
      */
     private WebsockifySslContext(String keystore, String password, String keyPassword) {
         try {
-            // Key store (Server side certificate)
-            String algorithm = Security.getProperty("ssl.KeyManagerFactory.algorithm");
-            if (algorithm == null) {
-                algorithm = "SunX509";
-            }
-
             SSLContext serverContext = null;
             try {
-                String keyStoreFilePath = keystore;
-
-                KeyStore ks = KeyStore.getInstance("JKS");
-                FileInputStream fin = new FileInputStream(keyStoreFilePath);
-                ks.load(fin, password.toCharArray());
-
-                // Set up key manager factory to use our key store
-                // Assume key password is the same as the key store file
-                // password
-                KeyManagerFactory kmf = KeyManagerFactory.getInstance(algorithm);
-                kmf.init(ks, keyPassword.toCharArray());
-
-                // Initialise the SSLContext to work with our key managers.
-                serverContext = SSLContext.getInstance(PROTOCOL);
-                serverContext.init(kmf.getKeyManagers(), null, null);
+            	serverContext = getSSLContext(keystore, password, keyPassword);
             } catch (Exception e) {
         		Logger.getLogger(WebsockifySslContext.class.getName()).severe("Error creating SSL context for keystore " + keystore + ": " + e.getMessage());
                 throw new Error("Failed to initialize the server-side SSLContext", e);
@@ -93,4 +80,40 @@ public class WebsockifySslContext {
     public SSLContext getServerContext() {
         return _serverContext;
     }
+
+    private static SSLContext getSSLContext ( String keyStoreFilePath, String password, String keyPassword )
+    	throws KeyStoreException, FileNotFoundException, CertificateException, NoSuchAlgorithmException,
+    	IOException, UnrecoverableKeyException, KeyManagementException
+    {
+        // Key store (Server side certificate)
+        String algorithm = Security.getProperty("ssl.KeyManagerFactory.algorithm");
+        if (algorithm == null) {
+            algorithm = "SunX509";
+        }
+        
+        KeyStore ks = KeyStore.getInstance("JKS");
+        FileInputStream fin = new FileInputStream(keyStoreFilePath);
+        ks.load(fin, password.toCharArray());
+
+        // Set up key manager factory to use our key store
+        // Assume key password is the same as the key store file
+        // password
+        KeyManagerFactory kmf = KeyManagerFactory.getInstance(algorithm);
+        kmf.init(ks, keyPassword.toCharArray());
+
+        // Initialise the SSLContext to work with our key managers.
+        SSLContext context = SSLContext.getInstance(PROTOCOL);
+        context.init(kmf.getKeyManagers(), null, null);
+        return context;
+    }
+	
+	public static String validateKeystore ( String keystore, String password, String keyPassword ) {
+        try {
+        	getSSLContext(keystore, password, keyPassword);
+        } catch (Exception e) {
+    		Logger.getLogger(WebsockifySslContext.class.getName()).severe("Error validating SSL context for keystore " + keystore + ": " + e.getMessage());
+            return e.getMessage();
+        }
+		return null;
+	}
 }

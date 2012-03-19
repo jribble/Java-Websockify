@@ -99,6 +99,13 @@ public class Websockify {
             if (keystoreKeyPassword == null || keystoreKeyPassword.isEmpty()) {
             	keystoreKeyPassword = keystorePassword;
             }
+            
+            String invalidMsg = WebsockifySslContext.validateKeystore(keystore, keystorePassword, keystoreKeyPassword);
+            if ( invalidMsg != null ) {
+            	System.err.println("Error validating keystore: " + invalidMsg );
+            	printUsage(System.err);
+            	System.exit(2);
+            }
         }
 
         System.out.println(
