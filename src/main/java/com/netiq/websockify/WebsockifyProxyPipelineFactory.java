@@ -15,14 +15,16 @@ public class WebsockifyProxyPipelineFactory implements ChannelPipelineFactory {
     private final SSLSetting sslSetting;
     private final String keystore;
     private final String keystorePassword;
+    private final String keystoreKeyPassword;
     private final String webDirectory;
 
-    public WebsockifyProxyPipelineFactory(ClientSocketChannelFactory cf, IProxyTargetResolver resolver, SSLSetting sslSetting, String keystore, String keystorePassword, String webDirectory) {
+    public WebsockifyProxyPipelineFactory(ClientSocketChannelFactory cf, IProxyTargetResolver resolver, SSLSetting sslSetting, String keystore, String keystorePassword, String keystoreKeyPassword, String webDirectory) {
         this.cf = cf;
         this.resolver = resolver;
         this.sslSetting = sslSetting;
         this.keystore = keystore;
         this.keystorePassword = keystorePassword;
+        this.keystoreKeyPassword = keystoreKeyPassword;
         this.webDirectory = webDirectory;
     }
 
@@ -30,7 +32,7 @@ public class WebsockifyProxyPipelineFactory implements ChannelPipelineFactory {
     public ChannelPipeline getPipeline() throws Exception {
         ChannelPipeline p = pipeline(); // Note the static import.
         
-        p.addLast("unification", new PortUnificationHandler(cf, resolver, sslSetting, keystore, keystorePassword, webDirectory));
+        p.addLast("unification", new PortUnificationHandler(cf, resolver, sslSetting, keystore, keystorePassword, keystoreKeyPassword, webDirectory));
         return p;
 
     }

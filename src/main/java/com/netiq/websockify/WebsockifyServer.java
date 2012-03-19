@@ -35,12 +35,12 @@ public class WebsockifyServer {
 	
 	public void connect ( int localPort, String remoteHost, int remotePort, String webDirectory )
 	{
-		connect ( localPort, remoteHost, remotePort, SSLSetting.OFF, null, null, webDirectory );
+		connect ( localPort, remoteHost, remotePort, SSLSetting.OFF, null, null, null, webDirectory );
 	}
 	
-	public void connect ( int localPort, String remoteHost, int remotePort, SSLSetting sslSetting, String keystore, String keystorePassword, String webDirectory )
+	public void connect ( int localPort, String remoteHost, int remotePort, SSLSetting sslSetting, String keystore, String keystorePassword, String keystoreKeyPassword, String webDirectory )
 	{
-		connect ( localPort, new StaticTargetResolver ( remoteHost, remotePort ), sslSetting, keystore, keystorePassword, webDirectory );		
+		connect ( localPort, new StaticTargetResolver ( remoteHost, remotePort ), sslSetting, keystore, keystorePassword, keystoreKeyPassword, webDirectory );		
 	}
 	
 	public void connect ( int localPort, IProxyTargetResolver resolver )
@@ -50,17 +50,17 @@ public class WebsockifyServer {
 	
 	public void connect ( int localPort, IProxyTargetResolver resolver, String webDirectory )
 	{
-		connect ( localPort, resolver, SSLSetting.OFF, null, null, webDirectory );
+		connect ( localPort, resolver, SSLSetting.OFF, null, null, null, webDirectory );
 	}
 	
-	public void connect ( int localPort, IProxyTargetResolver resolver, SSLSetting sslSetting, String keystore, String keystorePassword, String webDirectory )
+	public void connect ( int localPort, IProxyTargetResolver resolver, SSLSetting sslSetting, String keystore, String keystorePassword, String keystoreKeyPassword, String webDirectory )
 	{
 		if ( serverChannel != null )
 		{
 			close ( );
 		}
 
-        sb.setPipelineFactory(new WebsockifyProxyPipelineFactory(cf, resolver, sslSetting, keystore, keystorePassword, webDirectory));
+        sb.setPipelineFactory(new WebsockifyProxyPipelineFactory(cf, resolver, sslSetting, keystore, keystorePassword, keystoreKeyPassword, webDirectory));
 
         // Start up the server.
         serverChannel = sb.bind(new InetSocketAddress(localPort));

@@ -29,6 +29,9 @@ public class Websockify {
 	@Option(name="--keystore-password",usage="password to the java keystore file. Required for SSL.")
 	private String keystorePassword = null;
 	
+	@Option(name="--keystore-key-password",usage="password to the private key in the java keystore file. If not specified the keystore-password value will be used.")
+	private String keystoreKeyPassword = null;
+	
 	@Argument(index=0,metaVar="source_port",usage="(required) local port the websockify server will listen on",required=true)
 	private int sourcePort;
 	
@@ -92,6 +95,10 @@ public class Websockify {
         		printUsage(System.err);
                 System.exit(1);
             }
+            
+            if (keystoreKeyPassword == null || keystoreKeyPassword.isEmpty()) {
+            	keystoreKeyPassword = keystorePassword;
+            }
         }
 
         System.out.println(
@@ -100,7 +107,7 @@ public class Websockify {
         if(sslSetting != SSLSetting.OFF) System.out.println("SSL is " + (sslSetting == SSLSetting.REQUIRED ? "required." : "enabled."));
 
         WebsockifyServer wss = new WebsockifyServer ( );
-        wss.connect ( sourcePort, targetHost, targetPort, sslSetting, keystore, keystorePassword, webDirectory );
+        wss.connect ( sourcePort, targetHost, targetPort, sslSetting, keystore, keystorePassword, keystoreKeyPassword, webDirectory );
         
     }
 

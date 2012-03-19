@@ -48,21 +48,23 @@ public class PortUnificationHandler extends FrameDecoder {
 	private final IProxyTargetResolver resolver;
     private final SSLSetting sslSetting;
     private final String keystore;
-    private final String keystorePassword;    
+    private final String keystorePassword;  
+    private final String keystoreKeyPassword;    
     private final String webDirectory;
     private Timer msgTimer = null;
 
-    private PortUnificationHandler(ClientSocketChannelFactory cf, IProxyTargetResolver resolver, SSLSetting sslSetting, String keystore, String keystorePassword, String webDirectory, final ChannelHandlerContext ctx) {
-    	this ( cf, resolver, sslSetting, keystore, keystorePassword, webDirectory);
+    private PortUnificationHandler(ClientSocketChannelFactory cf, IProxyTargetResolver resolver, SSLSetting sslSetting, String keystore, String keystorePassword, String keystoreKeyPassword, String webDirectory, final ChannelHandlerContext ctx) {
+    	this ( cf, resolver, sslSetting, keystore, keystorePassword, keystoreKeyPassword, webDirectory);
     	startDirectConnectionTimer(ctx);
     }
     
-    public PortUnificationHandler(ClientSocketChannelFactory cf, IProxyTargetResolver resolver, SSLSetting sslSetting, String keystore, String keystorePassword, String webDirectory) {
+    public PortUnificationHandler(ClientSocketChannelFactory cf, IProxyTargetResolver resolver, SSLSetting sslSetting, String keystore, String keystorePassword, String keystoreKeyPassword, String webDirectory) {
     	this.cf = cf;
     	this.resolver = resolver;
         this.sslSetting = sslSetting;
         this.keystore = keystore;
         this.keystorePassword = keystorePassword;
+        this.keystoreKeyPassword = keystoreKeyPassword;
         this.webDirectory = webDirectory;
     }
     
@@ -148,11 +150,11 @@ public class PortUnificationHandler extends FrameDecoder {
 
 		Logger.getLogger(PortUnificationHandler.class.getName()).fine("SSL request from " + ctx.getChannel().getRemoteAddress() + ".");
 
-        SSLEngine engine = WebsockifySslContext.getInstance(keystore, keystorePassword).getServerContext().createSSLEngine();
+        SSLEngine engine = WebsockifySslContext.getInstance(keystore, keystorePassword, keystoreKeyPassword).getServerContext().createSSLEngine();
         engine.setUseClientMode(false);
 
         p.addLast("ssl", new SslHandler(engine));
-        p.addLast("unificationA", new PortUnificationHandler(cf, resolver, SSLSetting.OFF, keystore, keystorePassword, webDirectory, ctx));
+        p.addLast("unificationA", new PortUnificationHandler(cf, resolver, SSLSetting.OFF, keystore, keystorePassword, keystoreKeyPassword, webDirectory, ctx));
         p.remove(this);
     }
 

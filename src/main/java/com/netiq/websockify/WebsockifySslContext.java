@@ -21,11 +21,11 @@ public class WebsockifySslContext {
     /**
      * Returns the singleton instance for this class
      */
-    public static WebsockifySslContext getInstance(String keystore, String keystorePassword) {
+    public static WebsockifySslContext getInstance(String keystore, String password, String keyPassword) {
     	WebsockifySslContext context = SingletonHolder.INSTANCE_MAP.get(keystore);
     	if ( context == null )
     	{
-    		context = new WebsockifySslContext ( keystore, keystorePassword );
+    		context = new WebsockifySslContext ( keystore, password, keyPassword );
     		SingletonHolder.INSTANCE_MAP.put(keystore, context);
     	}
     	return context;
@@ -40,11 +40,17 @@ public class WebsockifySslContext {
     private static class SingletonHolder {
         public static final HashMap<String, WebsockifySslContext> INSTANCE_MAP = new HashMap<String, WebsockifySslContext>();
     }
+    /**
+     * Constructor for singleton
+     */
+    private WebsockifySslContext(String keystore, String password) {
+        this ( keystore, password, password );
+    }
 
     /**
      * Constructor for singleton
      */
-    private WebsockifySslContext(String keystore, String keystorePassword) {
+    private WebsockifySslContext(String keystore, String password, String keyPassword) {
         try {
             // Key store (Server side certificate)
             String algorithm = Security.getProperty("ssl.KeyManagerFactory.algorithm");
@@ -55,17 +61,16 @@ public class WebsockifySslContext {
             SSLContext serverContext = null;
             try {
                 String keyStoreFilePath = keystore;
-                String keyStoreFilePassword = keystorePassword;
 
                 KeyStore ks = KeyStore.getInstance("JKS");
                 FileInputStream fin = new FileInputStream(keyStoreFilePath);
-                ks.load(fin, keyStoreFilePassword.toCharArray());
+                ks.load(fin, password.toCharArray());
 
                 // Set up key manager factory to use our key store
                 // Assume key password is the same as the key store file
                 // password
                 KeyManagerFactory kmf = KeyManagerFactory.getInstance(algorithm);
-                kmf.init(ks, keyStoreFilePassword.toCharArray());
+                kmf.init(ks, keyPassword.toCharArray());
 
                 // Initialise the SSLContext to work with our key managers.
                 serverContext = SSLContext.getInstance(PROTOCOL);
