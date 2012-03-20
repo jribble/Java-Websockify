@@ -8,7 +8,7 @@
 	<groupId>com.netiq</groupId>
 	<artifactId>websockify</artifactId>
 	<packaging>jar</packaging>
-	<version>1.3-SNAPSHOT</version>
+	<version>1.3</version>
 	<name>Java Websockify</name>
 	<description>A websockify server written in Java using Netty.</description>
 	<url>https://github.com/jribble/Java-Websockify</url>
