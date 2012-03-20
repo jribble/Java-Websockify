@@ -1,5 +1,7 @@
 package com.netiq.websockify;
 
+import java.util.logging.Logger;
+
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
@@ -52,6 +54,7 @@ public class OutboundHandler extends SimpleChannelUpstreamHandler {
     @Override
     public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e)
             throws Exception {
+		Logger.getLogger(WebsockifyProxyHandler.class.getName()).info("Outbound proxy connection to " + ctx.getChannel().getRemoteAddress() + " closed.");
         WebsockifyProxyHandler.closeOnFlush(inboundChannel);
     }
 
@@ -59,6 +62,7 @@ public class OutboundHandler extends SimpleChannelUpstreamHandler {
     public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e)
             throws Exception {
         e.getCause().printStackTrace();
+		Logger.getLogger(WebsockifyProxyHandler.class.getName()).severe("Exception on outbound proxy connection to " + e.getChannel().getRemoteAddress() + ": " + e.getCause().getMessage());
         WebsockifyProxyHandler.closeOnFlush(e.getChannel());
     }
 }

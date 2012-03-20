@@ -1,6 +1,7 @@
 package com.netiq.websockify;
 
 import java.net.InetSocketAddress;
+import java.util.logging.Logger;
 
 import org.jboss.netty.bootstrap.ClientBootstrap;
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -39,11 +40,13 @@ public class DirectProxyHandler extends SimpleChannelUpstreamHandler {
     	if(outboundChannel == null) {
 	        // Suspend incoming traffic until connected to the remote host.
 	        inboundChannel.setReadable(false);
+			Logger.getLogger(WebsockifyProxyHandler.class.getName()).info("Inbound proxy connection from " + inboundChannel.getRemoteAddress() + ".");
 	        
 	        // resolve the target
-	        InetSocketAddress target = resolver.resolveTarget(inboundChannel);
+	        final InetSocketAddress target = resolver.resolveTarget(inboundChannel);
 	        if ( target == null )
 	        {
+				Logger.getLogger(WebsockifyProxyHandler.class.getName()).severe("Connection from " + inboundChannel.getRemoteAddress() + " failed to resolve target.");
 	        	// there is no target
 	        	inboundChannel.close();
 	        	return;
@@ -65,10 +68,12 @@ public class DirectProxyHandler extends SimpleChannelUpstreamHandler {
 	            @Override
 	            public void operationComplete(ChannelFuture future) throws Exception {
 	                if (future.isSuccess()) {
+	    				Logger.getLogger(WebsockifyProxyHandler.class.getName()).info("Created outbound connection to " + target + ".");
 	                    // Connection attempt succeeded:
 	                    // Begin to accept incoming traffic.
 	                    inboundChannel.setReadable(true);
 	                } else {
+	    				Logger.getLogger(WebsockifyProxyHandler.class.getName()).severe("Failed to create outbound connection to " + target + ".");
 	                    // Close the connection if the connection attempt has failed.
 	                    inboundChannel.close();
 	                }
@@ -80,9 +85,7 @@ public class DirectProxyHandler extends SimpleChannelUpstreamHandler {
     }
     
     // In cases where there will be a direct VNC proxy connection
-    // The client won't send any message because VNC servers talk first
-    // So we'll set a timer on the connection - if there's no message by the time
-    // the timer fires we'll create the proxy connection to the target
+    // The client won't send any message so connect directly on channel open
     @Override
     public void channelOpen(final ChannelHandlerContext ctx, final ChannelStateEvent e)
             throws Exception {
@@ -123,6 +126,7 @@ public class DirectProxyHandler extends SimpleChannelUpstreamHandler {
     @Override
     public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e)
             throws Exception {
+		Logger.getLogger(WebsockifyProxyHandler.class.getName()).info("Inbound proxy connection from " + ctx.getChannel().getRemoteAddress() + " closed.");
         if (outboundChannel != null) {
             closeOnFlush(outboundChannel);
         }
@@ -132,6 +136,7 @@ public class DirectProxyHandler extends SimpleChannelUpstreamHandler {
     public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e)
             throws Exception {
         e.getCause().printStackTrace();
+		Logger.getLogger(WebsockifyProxyHandler.class.getName()).severe("Exception on inbound proxy connection from " + e.getChannel().getRemoteAddress() + ": " + e.getCause().getMessage());
         closeOnFlush(e.getChannel());
     }
 
