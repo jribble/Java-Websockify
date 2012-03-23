@@ -6,7 +6,13 @@ import org.jboss.netty.channel.socket.ClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -88,8 +94,10 @@ public class WebsockifyServer {
 	 * @param keyPassword - password to the private key in the keystore file
 	 * @return null if valid, otherwise a string describing the error.
 	 */
-	public String validateKeystore ( String keystore, String password, String keyPassword ) {
-		return WebsockifySslContext.validateKeystore(keystore, password, keyPassword);
+	public void validateKeystore ( String keystore, String password, String keyPassword )
+		throws KeyManagementException, UnrecoverableKeyException, IOException, NoSuchAlgorithmException, CertificateException, KeyStoreException
+	{
+		WebsockifySslContext.validateKeystore(keystore, password, keyPassword);
 	}
 
 }

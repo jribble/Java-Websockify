@@ -106,14 +106,18 @@ public class WebsockifySslContext {
         context.init(kmf.getKeyManagers(), null, null);
         return context;
     }
-	
-	public static String validateKeystore ( String keystore, String password, String keyPassword ) {
-        try {
-        	getSSLContext(keystore, password, keyPassword);
-        } catch (Exception e) {
-    		Logger.getLogger(WebsockifySslContext.class.getName()).severe("Error validating SSL context for keystore " + keystore + ": " + e.getMessage());
-            return e.getMessage();
-        }
-		return null;
+
+	/**
+	 * Validates that a keystore with the given parameters exists and can be used for an SSL context.
+	 * @param keystore - path to the keystore file
+	 * @param password - password to the keystore file
+	 * @param keyPassword - password to the private key in the keystore file
+	 * @return null if valid, otherwise a string describing the error.
+	 */
+	public static void validateKeystore ( String keystore, String password, String keyPassword )
+		throws KeyManagementException, UnrecoverableKeyException, IOException, NoSuchAlgorithmException, CertificateException, KeyStoreException
+	{
+        
+        getSSLContext(keystore, password, keyPassword);
 	}
 }
