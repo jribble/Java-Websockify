@@ -29,7 +29,7 @@ import org.jboss.netty.util.CharsetUtil;
  * </code>
  */
 public class FlashPolicyHandler extends FrameDecoder {
-    private static final String XML = "<cross-domain-policy><allow-access-from domain=\"*\" to-ports=\"*\" /></cross-domain-policy>";
+    /*package*/ static final String XML = "<cross-domain-policy><allow-access-from domain=\"*\" to-ports=\"*\" /></cross-domain-policy>";
     private ChannelBuffer policyResponse = ChannelBuffers.copiedBuffer(XML, CharsetUtil.UTF_8);
 
     /**
