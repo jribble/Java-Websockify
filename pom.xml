@@ -41,6 +41,12 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
+			<artifactId>mockito-all</artifactId>
+			<groupId>org.mockito</groupId>
+			<version>1.8.5</version>
+			<scope>test</scope>	
+		</dependency>
+		<dependency>
 		    <groupId>io.netty</groupId>
 		    <artifactId>netty</artifactId>
 		    <version>3.3.0.Final</version>
