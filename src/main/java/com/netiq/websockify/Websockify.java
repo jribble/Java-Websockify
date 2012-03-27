@@ -32,6 +32,9 @@ public class Websockify {
 	@Option(name="--keystore-key-password",usage="password to the private key in the java keystore file. If not specified the keystore-password value will be used.")
 	private String keystoreKeyPassword = null;
 	
+	@Option(name="--direct-proxy-timeout",usage="connection timeout before a direct proxy connection is established in milliseconds. Default is 5000 (5 seconds). With the VNC protocol the server sends the first message. This means that a client that wants a direct proxy connection will connect and not send a message. Websockify will wait the specified number of milliseconds for an incoming connection to send a message. If no message is recieved it initiates a direct proxy connection. Setting this value too low will cause connection attempts that aren't direct proxy connections to fail. Set this to 0 to disable direct proxy connections.")
+	private int directProxyTimeout = 5000;
+	
 	@Argument(index=0,metaVar="source_port",usage="(required) local port the websockify server will listen on",required=true)
 	private int sourcePort;
 	
@@ -116,6 +119,8 @@ public class Websockify {
                 "Websockify Proxying *:" + sourcePort + " to " +
                 targetHost + ':' + targetPort + " ...");
         if(sslSetting != SSLSetting.OFF) System.out.println("SSL is " + (sslSetting == SSLSetting.REQUIRED ? "required." : "enabled."));
+        
+        PortUnificationHandler.setConnectionToFirstMessageTimeout(directProxyTimeout);
 
         WebsockifyServer wss = new WebsockifyServer ( );
         wss.connect ( sourcePort, targetHost, targetPort, sslSetting, keystore, keystorePassword, keystoreKeyPassword, webDirectory );

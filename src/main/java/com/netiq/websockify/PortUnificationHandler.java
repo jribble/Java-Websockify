@@ -42,7 +42,7 @@ import com.netiq.websockify.WebsockifyServer.SSLSetting;
  * SSL or GZIP.
  */
 public class PortUnificationHandler extends FrameDecoder {
-    public static final long CONNECTION_TO_FIRST_MSG_TIMEOUT = 1000;
+    protected static long connectionToFirstMessageTimeout = 5000;
 
 	private final ClientSocketChannelFactory cf;
 	private final IProxyTargetResolver resolver;
@@ -52,6 +52,7 @@ public class PortUnificationHandler extends FrameDecoder {
     private final String keystoreKeyPassword;    
     private final String webDirectory;
     private Timer msgTimer = null;
+    private long directConnectTimerStart = 0;
 
     private PortUnificationHandler(ClientSocketChannelFactory cf, IProxyTargetResolver resolver, SSLSetting sslSetting, String keystore, String keystorePassword, String keystoreKeyPassword, String webDirectory, final ChannelHandlerContext ctx) {
     	this ( cf, resolver, sslSetting, keystore, keystorePassword, keystoreKeyPassword, webDirectory);
@@ -67,6 +68,14 @@ public class PortUnificationHandler extends FrameDecoder {
         this.keystoreKeyPassword = keystoreKeyPassword;
         this.webDirectory = webDirectory;
     }
+
+	public static long getConnectionToFirstMessageTimeout() {
+		return connectionToFirstMessageTimeout;
+	}
+
+	public static void setConnectionToFirstMessageTimeout(long connectionToFirstMessageTimeout) {
+		PortUnificationHandler.connectionToFirstMessageTimeout = connectionToFirstMessageTimeout;
+	}
     
     // In cases where there will be a direct VNC proxy connection
     // The client won't send any message because VNC servers talk first
@@ -81,7 +90,12 @@ public class PortUnificationHandler extends FrameDecoder {
     private void startDirectConnectionTimer ( final ChannelHandlerContext ctx )
     {
     	// cancel any outstanding timer
-        cancelDirectionConnectionTimer ( );
+        cancelDirectConnectionTimer ( );
+        
+        // direct proxy connection disabled
+        if ( connectionToFirstMessageTimeout <= 0 ) return;
+        
+        directConnectTimerStart = System.currentTimeMillis();
     
     	// cancelling a timer makes it unusable again, so we have to create another one
     	msgTimer = new Timer();
@@ -92,12 +106,17 @@ public class PortUnificationHandler extends FrameDecoder {
 		        switchToDirectProxy(ctx);				
 			}
     		
-    	}, CONNECTION_TO_FIRST_MSG_TIMEOUT);
+    	}, connectionToFirstMessageTimeout);
     	
     }
     
-    private void cancelDirectionConnectionTimer ( )
+    private void cancelDirectConnectionTimer ( )
     {
+    	if ( directConnectTimerStart > 0 ) {
+	    	long directConnectTimerCancel = System.currentTimeMillis();
+			Logger.getLogger(PortUnificationHandler.class.getName()).finer("Direct connection timer canceled after " + (directConnectTimerCancel - directConnectTimerStart) + " milliseconds.");
+    	}
+    	
     	if ( msgTimer != null ) {
     		msgTimer.cancel();
     		msgTimer = null;
@@ -112,7 +131,7 @@ public class PortUnificationHandler extends FrameDecoder {
             return null;
         }
         
-        cancelDirectionConnectionTimer ( );        
+        cancelDirectConnectionTimer ( );        
 
         final int magic1 = buffer.getUnsignedByte(buffer.readerIndex());
         final int magic2 = buffer.getUnsignedByte(buffer.readerIndex() + 1);
@@ -195,14 +214,14 @@ public class PortUnificationHandler extends FrameDecoder {
     @Override
     public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e)
             throws Exception {
-        cancelDirectionConnectionTimer ( );
+        cancelDirectConnectionTimer ( );
     }
 
     // cancel the timer if exception is caught - prevents useless stack traces
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e)
             throws Exception {
-        cancelDirectionConnectionTimer ( );
+        cancelDirectConnectionTimer ( );
 		Logger.getLogger(PortUnificationHandler.class.getName()).severe("Exception on connection to " + ctx.getChannel().getRemoteAddress() + ": " + e.getCause().getMessage() );
     }
 }
