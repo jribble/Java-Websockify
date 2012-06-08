@@ -473,7 +473,12 @@ public class WebsockifyProxyHandler extends SimpleChannelUpstreamHandler {
     }
 
     private String getWebSocketLocation(HttpRequest req) {
-        return "wss://" + req.getHeader(HttpHeaders.Names.HOST);
+        String prefix = "ws";
+        String origin = req.getHeader(HttpHeaders.Names.ORIGIN).toLowerCase();
+        if(origin.contains("https")){
+            prefix = "wss";
+        }
+        return prefix + "://" + req.getHeader(HttpHeaders.Names.HOST) + req.getUri();
     }
 
     @Override
