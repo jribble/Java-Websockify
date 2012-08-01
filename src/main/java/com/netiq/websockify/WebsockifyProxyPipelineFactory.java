@@ -28,7 +28,6 @@ public class WebsockifyProxyPipelineFactory implements ChannelPipelineFactory {
         this.webDirectory = webDirectory;
     }
 
-    @Override
     public ChannelPipeline getPipeline() throws Exception {
         ChannelPipeline p = pipeline(); // Note the static import.
         

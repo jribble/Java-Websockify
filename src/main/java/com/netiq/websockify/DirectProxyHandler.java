@@ -65,7 +65,6 @@ public class DirectProxyHandler extends SimpleChannelUpstreamHandler {
 	        outboundChannel = f.getChannel();
 	        if ( sendMsg != null ) outboundChannel.write(sendMsg);
 	        f.addListener(new ChannelFutureListener() {
-	            @Override
 	            public void operationComplete(ChannelFuture future) throws Exception {
 	                if (future.isSuccess()) {
 	    				Logger.getLogger(WebsockifyProxyHandler.class.getName()).info("Created outbound connection to " + target + ".");

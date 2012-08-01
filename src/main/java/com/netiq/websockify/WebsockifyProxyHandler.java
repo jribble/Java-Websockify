@@ -124,7 +124,6 @@ public class WebsockifyProxyHandler extends SimpleChannelUpstreamHandler {
 	        outboundChannel = f.getChannel();
 	        if ( sendMsg != null ) outboundChannel.write(sendMsg);
 	        f.addListener(new ChannelFutureListener() {
-	            @Override
 	            public void operationComplete(ChannelFuture future) throws Exception {
 	                if (future.isSuccess()) {
 	                    // Connection attempt succeeded:
@@ -307,12 +306,10 @@ public class WebsockifyProxyHandler extends SimpleChannelUpstreamHandler {
                 new DefaultFileRegion(raf.getChannel(), 0, fileLength);
             writeFuture = ch.write(region);
             writeFuture.addListener(new ChannelFutureProgressListener() {
-                @Override
                 public void operationComplete(ChannelFuture future) {
                     region.releaseExternalResources();
                 }
 
-                @Override
                 public void operationProgressed(
                         ChannelFuture future, long amount, long current, long total) {
                     System.out.printf("%s: %d / %d (+%d)%n", path, current, total, amount);

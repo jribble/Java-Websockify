@@ -13,7 +13,6 @@ public class StaticTargetResolver implements IProxyTargetResolver {
 		targetAddress = new InetSocketAddress ( targetHost, targetPort );
 	}
 
-	@Override
 	public InetSocketAddress resolveTarget(Channel channel) {
 		return targetAddress;
 	}
